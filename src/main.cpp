@@ -32,7 +32,7 @@ void checkShouldCloseLights(double time);
 unsigned oldMillis = 0;
 bool isLightsOn = false;
 
-#define LIGHT_ON_TIME 3
+#define LIGHT_ON_TIME 3 // 0.08 = 5 sec
 
 void setup() {
   Serial.begin(115200);
@@ -49,12 +49,10 @@ void loop() {
   
   pirResult = digitalRead(SENSOR_PIN);
   if (pirResult == HIGH) {
-    if (!isLightsOn) {
-      toggleLights();
-    }
+    toggleLights();
+  } else {
+    checkShouldCloseLights(LIGHT_ON_TIME);
   }
-
-  checkShouldCloseLights(LIGHT_ON_TIME);
 }
 
 void initSensor() {
@@ -75,14 +73,15 @@ void turnOffRelay() {
 }
 
 void toggleLights() {
-   if (!isLightsOn) {
-     turnOnRelay();
-     isLightsOn = true;
-     oldMillis = millis();
-   }
+  if (!isLightsOn) {
+    turnOnRelay();
+    isLightsOn = true;
+  }
+  oldMillis = millis();
 }
 
 void checkShouldCloseLights(double time) {
+  if (!isLightsOn) return;
   // after time minutes, open the relay.
   if ((millis() - (time * 60000)) >= oldMillis) {
     if (isLightsOn) {
