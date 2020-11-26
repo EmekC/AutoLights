@@ -24,11 +24,15 @@ int pirResult = 0;
 void initSensor();
 void onSensorDetect();
 
+// lights
+void toggleLights();
+void checkShouldCloseLights(double time);
+
 // variables
 unsigned oldMillis = 0;
+bool isLightsOn = false;
 
-#define LIGHT_ON_TIME 3 * 60000
-#define TIME_OFFSET 60000 // 1 min sec
+#define LIGHT_ON_TIME 3
 
 void setup() {
   Serial.begin(115200);
@@ -45,14 +49,12 @@ void loop() {
   
   pirResult = digitalRead(SENSOR_PIN);
   if (pirResult == HIGH) {
-    oldMillis = millis();
-    turnOnRelay();
-    delay(LIGHT_ON_TIME);
+    if (!isLightsOn) {
+      toggleLights();
+    }
   }
 
-  if ((millis() - LIGHT_ON_TIME + TIME_OFFSET) > oldMillis) {
-    turnOffRelay();
-  }
+  checkShouldCloseLights(LIGHT_ON_TIME);
 }
 
 void initSensor() {
@@ -72,16 +74,28 @@ void turnOffRelay() {
   digitalWrite(RELAY_PIN, HIGH);
 }
 
+void toggleLights() {
+   if (!isLightsOn) {
+     turnOnRelay();
+     isLightsOn = true;
+     oldMillis = millis();
+   }
+}
+
+void checkShouldCloseLights(double time) {
+  // after time minutes, open the relay.
+  if ((millis() - (time * 60000)) >= oldMillis) {
+    if (isLightsOn) {
+      turnOffRelay();
+      isLightsOn = false;
+    }
+  }
+}
+
 // OTA STUFF
 void initWiFi() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(OTA_SSID, OTA_TOKEN);
-
-  while (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    Serial.println("Connection Failed! Rebooting...");
-    delay(5000);
-    ESP.restart();
-  }
 
   ArduinoOTA.onStart([]() {
     String type;
@@ -97,7 +111,7 @@ void initWiFi() {
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
   });
   ArduinoOTA.onError([](ota_error_t error) {
-    ESP.restart();
+    Serial.println("error uploading data...");
   });
 
   ArduinoOTA.begin();
